@@ -39,6 +39,19 @@ class Dictionary extends Module
   t: (word, onSuccess, onFailure) ->
     @translate(word, onSuccess, onFailure)
 
+# Jquery or Zepto plugin
+$ = window?.jQuery or window?.Zepto
+$.fn.extend dict: (name, options) ->
+  @defaultSettings =
+    doubleclick: true
+    loadingContainer: '#beforeTranslation'
+    successContainer: '#translateSuccessful'
+  settings = $.extend({}, @defaultSettings, options)
+  @each (index, element) ->
+    dict = new Dictionary(name, settings)
+  @
+
+
 # Globals
 exports = this
 exports.Dictionary = Dictionary

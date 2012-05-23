@@ -55,9 +55,38 @@ describe('Dictionary', function() {
   });
 
   describe('when use as Jquery or Zepto plugin', function() {
-    
 
-    
+    beforeEach(function() {
+      // Because of chrome cross domain issue.
+      // Check test/fixtures/dictionary.html for html version.
+      var html = '<div id="demo"><p>yesterday</p></div>';
+      html += '<div id="translateSuccessful">';
+      html += '<div id="word">foo</div><div id="phonetic">bar</div>';
+      html += '<div id="explains"><span id="explains1">hello</span><span id="explains2">world</span></div>';
+      html += '</div>';
+      html += '<div id="customSuccessful"><div id="word">foo</div><div id="phonetic">bar</div></div>';
+      html += '<div id="beforeTranslation"><span>loading...</span></div>';
+      html += '<div id="customLoading"><span>custom loading...</span></div>';
+      setFixtures(html);
+    });
+
+    it("have a defined function called dict()", function() {
+      spyOn($.fn, 'dict').andReturn('bar');
+      expect( $('#demo').dict() ).toEqual('bar');
+      // spyOn($.fn, "dict");
+      // $('#demo').dict();
+      // expect( $.fn.dict ).toHaveBeenCalled();
+    });
+
+    it("should have a pop windows above selected dom", function() {
+      $('#demo').dict();
+    })
+
+    it("should have a pop windows above double click dom", function() {
+      $('#demo').dict();
+    })
+
+
   });
   
 
