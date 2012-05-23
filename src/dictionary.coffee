@@ -26,7 +26,8 @@ youDaoModule =
     unless onSuccess?
       if xhr.status == 200
         try
-          return eval("(#{xhr.responseText})").translation.join()
+          responseObject = eval("(#{xhr.responseText})")
+          if responseObject.errorCode == 0 then responseObject.translation.join() else null
         catch error
           return null
       else
@@ -35,6 +36,8 @@ youDaoModule =
 class Dictionary extends Module
   constructor: (@name, @options = {}) ->
     Dictionary.include(youDaoModule) if @name == 'youdao'
+  t: (word, onSuccess, onFailure) ->
+    @translate(word, onSuccess, onFailure)
 
 # Globals
 exports = this

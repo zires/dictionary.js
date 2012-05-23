@@ -11,7 +11,11 @@ describe('Dictionary', function() {
 
       this.server.respondWith("GET", 
         "http://fanyi.youdao.com/openapi.do?keyfrom=fackkeyfrom&key=fackkey&type=data&doctype=json&version=1.1&q=yesterday",
-        [200, { "Content-Type": "application/json" },'{"translation":["昨天"]}']);
+        [200, { "Content-Type": "application/json" },'{"translation":["昨天"], "errorCode":0}']);
+
+      this.server.respondWith("GET", 
+        "http://fanyi.youdao.com/openapi.do?keyfrom=wrongkeyfrom&key=wrongkey&type=data&doctype=json&version=1.1&q=yesterday",
+        [200, { "Content-Type": "application/json" },'{"query":"yesterday","errorCode":50}']);
 
       dict = new Dictionary('youdao', {keyfrom: 'fackkeyfrom',key: 'fackkey'});
 
@@ -43,6 +47,20 @@ describe('Dictionary', function() {
       expect( dict.translate('yesterday') ).toBe( dict.t('yesterday') );
     });
 
+    it("should return null if use wrong keyfrom or key", function() {
+      var wrongDict = new Dictionary('youdao', {keyfrom: 'wrongkeyfrom',key: 'wrongkey'});
+      expect( wrongDict.translate('yesterday') ).toBe(null);
+    });
+
   });
+
+  describe('when use as Jquery or Zepto plugin', function() {
+    
+
+    
+  });
+  
+
+
 
 });
