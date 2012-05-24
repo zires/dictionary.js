@@ -49,6 +49,15 @@ $.fn.extend dict: (name, options) ->
   settings = $.extend({}, @defaultSettings, options)
   @each (index, element) ->
     dict = new Dictionary(name, settings)
+    # get the selected word
+    doc  = document
+    word = ''
+    word = window.getSelection().toString() if window.getSelection
+    word = doc.getSelection() if doc.getSelection
+    word = doc.selection.createRange().text if doc.selection
+    
+
+
   @
 
 
