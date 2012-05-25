@@ -56,6 +56,7 @@ $.fn.extend dict: (name, options) ->
     word = doc.getSelection() if doc.getSelection
     word = doc.selection.createRange().text if doc.selection
     
+    
 
 
   @
