@@ -40,27 +40,65 @@ class Dictionary extends Module
     @translate(word, onSuccess, onFailure)
 
 # Jquery or Zepto plugin
-$ = window?.jQuery or window?.Zepto
+$ = window?.jQuery or window?.Zepto or (element) -> element
 $.fn.extend dict: (name, options) ->
+  # TODO: doubleclick
+  # onSuccess
+  # OnFailure
+  # beforeTranslation
+  # loadingContainer
+  # successContainer
   @defaultSettings =
     doubleclick: true
     loadingContainer: '#beforeTranslation'
     successContainer: '#translateSuccessful'
+    onFailure: ->
+
   settings = $.extend({}, @defaultSettings, options)
-  @each (index, element) ->
-    dict = new Dictionary(name, settings)
-    # get the selected word
-    doc  = document
+
+  getSelectWord = (doc)->
     word = ''
-    word = window.getSelection().toString() if window.getSelection
+    word = window.getSelection() if window.getSelection
     word = doc.getSelection() if doc.getSelection
     word = doc.selection.createRange().text if doc.selection
-    
-    
+    word.toString()
 
+  $('body').children().not('#dictMain').mousedown ->
+    $('#dictMain').hide()
 
+  @each (index, element) =>
+    dict = new Dictionary(name, settings)
+    $(this).mouseup (e) ->
+      word = getSelectWord document
+      return if word == '' #do nothing if word is empty
+      status = true
+      status = settings.beforeTranslation.call this if typeof(settings.beforeTranslation) == 'function'
+      if status
+        offset = window.pageYOffset or document.documentElement.scrollTop or document.body.scrollTop or 0
+        left   = e.clientX
+        left   += settings.left if settings.left?
+        top    = (e.clientY - 40 < 0) ? e.clientY + offset + 10 : e.clientY + offset - 30
+        top    += settings.top if settings.top?
+        $container = if $('#dictMain').length > 0 then $('#dictMain') else $('<div id="dictMain"></div>').appendTo('body')
+        $container.empty()
+        $container.css('left', left).css('top', top).css('position', 'absolute')
+        $container.append( $(settings.loadingContainer) ).show() if settings.loadingContainer
+        onSuccess = settings.onSuccess ? (result) ->
+          $successContainer = $(settings.successContainer)
+          $successContainer.children('#word').text word
+          result = $.parseJSON result
+          console.log result
+          if result.basic?
+            $successContainer.children('#phonetic').text result.basic.phonetic
+            $.each result.basic.explains, (index, value) ->
+              $successContainer.children("#explains").append("<p>#{value}</p>")
+          else
+            $successContainer.children('#phonetic').hide()
+            $.each result.translation, (index, value) ->
+              $successContainer.children("#explains").append("<p>#{value}</p>")
+          $container.empty().append($successContainer).show()
+        dict.translate word, onSuccess, settings.onFailure
   @
-
 
 # Globals
 exports = this
