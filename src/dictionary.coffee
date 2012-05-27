@@ -13,8 +13,10 @@ class Module
 # YouDaoModule
 youDaoModule = 
   translate: (word, onSuccess, onFailure) ->
-    # TODO: may be need some code for ie6
-    xhr = new window.XMLHttpRequest()
+    if window.XMLHttpRequest
+      xhr = new window.XMLHttpRequest()
+    else if window.ActiveXObject
+      xhr = new ActiveXObject("Microsoft.XMLHTTP")
     url = "http://fanyi.youdao.com/openapi.do?keyfrom=#{@options.keyfrom}&key=#{@options.key}&type=data&doctype=json&version=1.1&q=#{word}"
     xhr.open('GET', url, onSuccess?)
     if onSuccess?
@@ -70,7 +72,7 @@ $.fn.extend dict: (name, options) ->
     dict = new Dictionary(name, settings)
     $(this).mouseup (e) ->
       word = getSelectWord document
-      return if word == '' #do nothing if word is empty
+      return if word.replace(/\s/g, "") == "" #do nothing if word is empty
       status = true
       status = settings.beforeTranslation.call this if typeof(settings.beforeTranslation) == 'function'
       if status
@@ -87,7 +89,6 @@ $.fn.extend dict: (name, options) ->
           $successContainer = $(settings.successContainer)
           $successContainer.children('#word').text word
           result = $.parseJSON result
-          console.log result
           if result.basic?
             $successContainer.children('#phonetic').text result.basic.phonetic
             $.each result.basic.explains, (index, value) ->
@@ -96,7 +97,7 @@ $.fn.extend dict: (name, options) ->
             $successContainer.children('#phonetic').hide()
             $.each result.translation, (index, value) ->
               $successContainer.children("#explains").append("<p>#{value}</p>")
-          $container.empty().append($successContainer).show()
+          $container.empty().append($successContainer.show()).show()
         dict.translate word, onSuccess, settings.onFailure
   @
 
