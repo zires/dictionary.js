@@ -13,27 +13,29 @@ class Module
 # YouDaoModule
 youDaoModule = 
   translate: (word, onSuccess, onFailure) ->
-    if window.XMLHttpRequest
-      xhr = new window.XMLHttpRequest()
-    else if window.ActiveXObject
-      xhr = new ActiveXObject("Microsoft.XMLHTTP")
-    url = "http://fanyi.youdao.com/openapi.do?keyfrom=#{@options.keyfrom}&key=#{@options.key}&type=data&doctype=json&version=1.1&q=#{word}"
-    xhr.open('GET', url, onSuccess?)
-    if onSuccess?
-      failureCallback = onFailure ? ->
-      xhr.onreadystatechange = ->
-        onSuccess(xhr.responseText) if xhr.readyState == 4 and xhr.status == 200
-        failureCallback(xhr.responseText) if xhr.readyState == 4 and xhr.status != 200
-    xhr.send null
-    unless onSuccess?
-      if xhr.status == 200
-        try
-          responseObject = eval("(#{xhr.responseText})")
-          if responseObject.errorCode == 0 then responseObject.translation.join() else null
-        catch error
-          return null
-      else
-        return xhr.statusText
+    url = "http://fanyi.youdao.com/openapi.do?keyfrom=#{@options.keyfrom}&key=#{@options.key}&type=data&doctype=jsonp&callback=?&version=1.1&q=#{word}"
+    $.getJSON(url, onSuccess)
+    # if window.XMLHttpRequest
+    #   xhr = new window.XMLHttpRequest()
+    # else if window.ActiveXObject
+    #   xhr = new ActiveXObject("Microsoft.XMLHTTP")
+    # url = "http://fanyi.youdao.com/openapi.do?keyfrom=#{@options.keyfrom}&key=#{@options.key}&type=data&doctype=json&version=1.1&q=#{word}"
+    # xhr.open('GET', url, onSuccess?)
+    # if onSuccess?
+    #   failureCallback = onFailure ? ->
+    #   xhr.onreadystatechange = ->
+    #     onSuccess(xhr.responseText) if xhr.readyState == 4 and xhr.status == 200
+    #     failureCallback(xhr.responseText) if xhr.readyState == 4 and xhr.status != 200
+    # xhr.send null
+    # unless onSuccess?
+    #   if xhr.status == 200
+    #     try
+    #       responseObject = eval("(#{xhr.responseText})")
+    #       if responseObject.errorCode == 0 then responseObject.translation.join() else null
+    #     catch error
+    #       return null
+    #   else
+    #     return xhr.statusText
 
 class Dictionary extends Module
   constructor: (@name, @options = {}) ->
@@ -65,8 +67,8 @@ $.fn.extend dict: (name, options) ->
     word = doc.selection.createRange().text if doc.selection
     word.toString()
 
-  $('body').children().not('#dictMain').mousedown ->
-    $('#dictMain').hide()
+  $('body').children().not('.dictMain').mousedown ->
+    $('.dictMain').hide()
 
   @each (index, element) =>
     dict = new Dictionary(name, settings)
@@ -77,27 +79,55 @@ $.fn.extend dict: (name, options) ->
       status = settings.beforeTranslation.call this if typeof(settings.beforeTranslation) == 'function'
       if status
         offset = window.pageYOffset or document.documentElement.scrollTop or document.body.scrollTop or 0
-        left   = e.clientX
+        left   = e.pageX
         left   += settings.left if settings.left?
-        top    = (e.clientY - 40 < 0) ? e.clientY + offset + 10 : e.clientY + offset - 30
+        top    = if e.pageY - 40 < 0 then e.pageY + offset + 10 else e.pageY + offset + 20
         top    += settings.top if settings.top?
-        $container = if $('#dictMain').length > 0 then $('#dictMain') else $('<div id="dictMain"></div>').appendTo('body')
-        $container.empty()
-        $container.css('left', left).css('top', top).css('position', 'absolute')
-        $container.append( $(settings.loadingContainer) ).show() if settings.loadingContainer
+        if settings.loadingContainer
+          $container = $(settings.loadingContainer).addClass('dictMain')
+          $container.css('left', left).css('top', top).css('position', 'absolute')
+          $container.show()
+        # $container = if $('#dictMain').length > 0 then $('#dictMain') else $('<div id="dictMain"></div>').appendTo('body')
+        # $container.empty()
+        # $container.css('left', left).css('top', top).css('position', 'absolute')
+        # $container.append( $(settings.loadingContainer).clone() ).show() if settings.loadingContainer
         onSuccess = settings.onSuccess ? (result) ->
-          $successContainer = $(settings.successContainer)
-          $successContainer.children('#word').text word
-          result = $.parseJSON result
+          #$successContainer = $(settings.successContainer).clone()
+          $container = $(settings.successContainer).addClass('dictMain')
+          $container.css('left', left).css('top', top).css('position', 'absolute')
+          $("#{settings.successContainer} #word").text word
           if result.basic?
-            $successContainer.children('#phonetic').text result.basic.phonetic
-            $.each result.basic.explains, (index, value) ->
-              $successContainer.children("#explains").append("<p>#{value}</p>")
+            phonetic = result.basic.phonetic
+            data     = result.basic.explains
           else
-            $successContainer.children('#phonetic').hide()
-            $.each result.translation, (index, value) ->
-              $successContainer.children("#explains").append("<p>#{value}</p>")
-          $container.empty().append($successContainer.show()).show()
+            data = result.translation
+
+          if phonetic?
+            $("#{settings.successContainer} #phonetic").text phonetic
+          else
+            $("#{settings.successContainer} #phonetic").hide()
+
+          if data?
+            $("#{settings.successContainer} #explains").empty()
+            $.each data, (index, value) ->
+              $("#{settings.successContainer} #explains").append("<p>#{value}</p>")
+          else
+            $("#{settings.successContainer} #explains").empty().hide()
+
+          $('.dictMain').hide()
+          $container.show()
+          # phonetic = result.basic.phonetic if result.basic?
+          # data = if result.basic? then 
+          #phonetic = if result.basic? then result.basic.phonetic
+          # if result.basic?
+          #   $successContainer.children('#phonetic').text result.basic.phonetic
+          #   $.each result.basic.explains, (index, value) ->
+          #     $successContainer.children("#explains").append("<p>#{value}</p>")
+          # else
+          #   $successContainer.children('#phonetic').hide()
+          #   $.each result.translation, (index, value) ->
+          #     $successContainer.children("#explains").append("<p>#{value}</p>")
+          # $container.empty().append($successContainer.show()).show()
         dict.translate word, onSuccess, settings.onFailure
   @
 
