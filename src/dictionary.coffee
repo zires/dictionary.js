@@ -3,69 +3,67 @@ moduleKeywords = ['extended', 'included']
 class Module
   @include: (obj) ->
     for key, value of obj when key not in moduleKeywords
-      # Assign properties to the prototype
-      # @:: means this.prototype
       @::[key] = value
-
     obj.included?.apply(@)
     this
 
 # YouDaoModule
 youDaoModule = 
-  translate: (word, onSuccess, onFailure) ->
+  translate: (word) ->
     url = "http://fanyi.youdao.com/openapi.do?keyfrom=#{@options.keyfrom}&key=#{@options.key}&type=data&doctype=jsonp&callback=?&version=1.1&q=#{word}"
-    $.getJSON(url, onSuccess)
-    # if window.XMLHttpRequest
-    #   xhr = new window.XMLHttpRequest()
-    # else if window.ActiveXObject
-    #   xhr = new ActiveXObject("Microsoft.XMLHTTP")
-    # url = "http://fanyi.youdao.com/openapi.do?keyfrom=#{@options.keyfrom}&key=#{@options.key}&type=data&doctype=json&version=1.1&q=#{word}"
-    # xhr.open('GET', url, onSuccess?)
-    # if onSuccess?
-    #   failureCallback = onFailure ? ->
-    #   xhr.onreadystatechange = ->
-    #     onSuccess(xhr.responseText) if xhr.readyState == 4 and xhr.status == 200
-    #     failureCallback(xhr.responseText) if xhr.readyState == 4 and xhr.status != 200
-    # xhr.send null
-    # unless onSuccess?
-    #   if xhr.status == 200
-    #     try
-    #       responseObject = eval("(#{xhr.responseText})")
-    #       if responseObject.errorCode == 0 then responseObject.translation.join() else null
-    #     catch error
-    #       return null
-    #   else
-    #     return xhr.statusText
+    @options.url      = url
+    @options.async    = true # This must be true
+    @options.dataType = @options.dataType ? 'json'
+    $.ajax @options
+    # settings.url   = url
+    # settings.async = true # This must be true
+    # $.ajax settings
 
 class Dictionary extends Module
   constructor: (@name, @options = {}) ->
     Dictionary.include(youDaoModule) if @name == 'youdao'
-  t: (word, onSuccess, onFailure) ->
-    @translate(word, onSuccess, onFailure)
+  t: (word) ->
+    @translate(word)
 
 # Jquery or Zepto plugin
 $ = window?.jQuery or window?.Zepto or (element) -> element
 $.fn.extend dict: (name, options) ->
   # TODO: doubleclick
-  # onSuccess
-  # OnFailure
-  # beforeTranslation
+  # any settings in $.ajax
   # loadingContainer
   # successContainer
   @defaultSettings =
     doubleclick: true
     loadingContainer: '#beforeTranslation'
     successContainer: '#translateSuccessful'
-    onFailure: ->
+    
 
   settings = $.extend({}, @defaultSettings, options)
 
-  getSelectWord = (doc)->
+  # This method should return a json contain word and coordinate.
+  # eq.
+  # {word:'yesterday', top: 20, left: 30}
+  getSelectWord = ()->
     word = ''
-    word = window.getSelection() if window.getSelection
-    word = doc.getSelection() if doc.getSelection
-    word = doc.selection.createRange().text if doc.selection
-    word.toString()
+    markerId = "sel_#{new Date().getTime()}_#{Math.random().toString().substr(2)}"
+    if document.selection and document.selection.createRange
+      word  = document.selection.createRange().text
+      # Clone the TextRange and collapse
+      range = document.selection.createRange().duplicate()
+      range.collapse false
+      # Create the marker element containing a single invisible character by creating literal HTML and insert it
+      range.pasteHTML "<span id='#{markerId}' style='position: relative;'>&#xfeff;</span>"
+    else if window.getSelection
+      word  = window.getSelection()
+      # TODO: Older WebKit doesn't have getRangeAt
+      range = word.getRangeAt(0).cloneRange()
+      range.collapse false
+      markerEl    = document.createElement("span")
+      markerEl.id = markerId
+      markerEl.appendChild( document.createTextNode("\ufeff") )
+      range.insertNode markerEl
+    marker = document.getElementById markerId
+    {word: word.toString, top: marker.offsetTop, left: marker.offsetLeft}
 
   $('body').children().not('.dictMain').mousedown ->
     $('.dictMain').hide()
@@ -73,7 +71,7 @@ $.fn.extend dict: (name, options) ->
   @each (index, element) =>
     dict = new Dictionary(name, settings)
     $(this).mouseup (e) ->
-      word = getSelectWord document
+      word = getSelectWord
       return if word.replace(/\s/g, "") == "" #do nothing if word is empty
       status = true
       status = settings.beforeTranslation.call this if typeof(settings.beforeTranslation) == 'function'
