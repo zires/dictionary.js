@@ -9,41 +9,21 @@ class Module
 
 # YouDaoModule
 youDaoModule = 
-  translate: (word) ->
+  translate: (word, settings = {}) ->
     url = "http://fanyi.youdao.com/openapi.do?keyfrom=#{@options.keyfrom}&key=#{@options.key}&type=data&doctype=jsonp&callback=?&version=1.1&q=#{word}"
-    @options.url      = url
-    @options.async    = true # This must be true
-    @options.dataType = @options.dataType ? 'json'
-    $.ajax @options
-    # settings.url   = url
-    # settings.async = true # This must be true
-    # $.ajax settings
+    settings.url   = url
+    settings.async = true # This must be true
+    settings.dataType = settings.dataType ? 'jsonp'
+    $.ajax settings
+    # $.getJSON url, settings.success
 
 class Dictionary extends Module
   constructor: (@name, @options = {}) ->
     Dictionary.include(youDaoModule) if @name == 'youdao'
-  t: (word) ->
-    @translate(word)
-
-# Jquery or Zepto plugin
-$ = window?.jQuery or window?.Zepto or (element) -> element
-$.fn.extend dict: (name, options) ->
-  # TODO: doubleclick
-  # any settings in $.ajax
-  # loadingContainer
-  # successContainer
-  @defaultSettings =
-    doubleclick: true
-    loadingContainer: '#beforeTranslation'
-    successContainer: '#translateSuccessful'
-    
-
-  settings = $.extend({}, @defaultSettings, options)
-
   # This method should return a json contain word and coordinate.
   # eq.
   # {word:'yesterday', top: 20, left: 30}
-  getSelectWord = ()->
+  @getSelectWord: () ->
     word = ''
     markerId = "sel_#{new Date().getTime()}_#{Math.random().toString().substr(2)}"
     if document.selection and document.selection.createRange
@@ -63,70 +43,58 @@ $.fn.extend dict: (name, options) ->
       markerEl.appendChild( document.createTextNode("\ufeff") )
       range.insertNode markerEl
     marker = document.getElementById markerId
-    {word: word.toString, top: marker.offsetTop, left: marker.offsetLeft}
+    top    = marker.offsetTop
+    left   = marker.offsetLeft
+    marker.parentNode.removeChild marker
+    {word: word.toString(), top: top, left: left}
+
+# Jquery or Zepto plugin
+$ = window?.jQuery or window?.Zepto or (element) -> element
+$.fn.extend dict: (name, options) ->
+  # TODO: doubleclick
+  # any settings in $.ajax
+  # loadingContainer
+  # successContainer
+  # leftOffset
+  # topOffset
+  @defaultSettings =
+    doubleclick: true
+    # loadingContainer: '#beforeTranslation'
+    successContainer: '#translateSuccessful'
+
+  settings = $.extend({}, @defaultSettings, options)
 
   $('body').children().not('.dictMain').mousedown ->
     $('.dictMain').hide()
 
-  @each (index, element) =>
+  @each () =>
     dict = new Dictionary(name, settings)
-    $(this).mouseup (e) ->
-      word = getSelectWord
+    $(this).mouseup ->
+      word = Dictionary.getSelectWord().word
       return if word.replace(/\s/g, "") == "" #do nothing if word is empty
-      status = true
-      status = settings.beforeTranslation.call this if typeof(settings.beforeTranslation) == 'function'
-      if status
-        offset = window.pageYOffset or document.documentElement.scrollTop or document.body.scrollTop or 0
-        left   = e.pageX
-        left   += settings.left if settings.left?
-        top    = if e.pageY - 40 < 0 then e.pageY + offset + 10 else e.pageY + offset + 20
-        top    += settings.top if settings.top?
-        if settings.loadingContainer
-          $container = $(settings.loadingContainer).addClass('dictMain')
-          $container.css('left', left).css('top', top).css('position', 'absolute')
-          $container.show()
-        # $container = if $('#dictMain').length > 0 then $('#dictMain') else $('<div id="dictMain"></div>').appendTo('body')
-        # $container.empty()
-        # $container.css('left', left).css('top', top).css('position', 'absolute')
-        # $container.append( $(settings.loadingContainer).clone() ).show() if settings.loadingContainer
-        onSuccess = settings.onSuccess ? (result) ->
-          #$successContainer = $(settings.successContainer).clone()
+      unless settings.success?
+        settings.success = (result) ->
+          wordObj = Dictionary.getSelectWord()
+          word = wordObj.word
+          left = wordObj.left + 10
+          left += parseInt(settings.leftOffset) if settings.leftOffset?
+          top  = wordObj.top
+          top  += parseInt(settings.topOffset) if settings.topOffset?
           $container = $(settings.successContainer).addClass('dictMain')
           $container.css('left', left).css('top', top).css('position', 'absolute')
           $("#{settings.successContainer} #word").text word
+          $("#{settings.successContainer} #phonetic").hide()
+          $("#{settings.successContainer} #explains").empty()
           if result.basic?
             phonetic = result.basic.phonetic
             data     = result.basic.explains
           else
             data = result.translation
-
-          if phonetic?
-            $("#{settings.successContainer} #phonetic").text phonetic
-          else
-            $("#{settings.successContainer} #phonetic").hide()
-
-          if data?
-            $("#{settings.successContainer} #explains").empty()
-            $.each data, (index, value) ->
-              $("#{settings.successContainer} #explains").append("<p>#{value}</p>")
-          else
-            $("#{settings.successContainer} #explains").empty().hide()
-
-          $('.dictMain').hide()
+          $("#{settings.successContainer} #phonetic").text("[#{phonetic}]").show() if phonetic?
+          $.each data, (index, value) ->
+            $("#{settings.successContainer} #explains").append("<p>#{value}</p>")
           $container.show()
-          # phonetic = result.basic.phonetic if result.basic?
-          # data = if result.basic? then 
-          #phonetic = if result.basic? then result.basic.phonetic
-          # if result.basic?
-          #   $successContainer.children('#phonetic').text result.basic.phonetic
-          #   $.each result.basic.explains, (index, value) ->
-          #     $successContainer.children("#explains").append("<p>#{value}</p>")
-          # else
-          #   $successContainer.children('#phonetic').hide()
-          #   $.each result.translation, (index, value) ->
-          #     $successContainer.children("#explains").append("<p>#{value}</p>")
-          # $container.empty().append($successContainer.show()).show()
-        dict.translate word, onSuccess, settings.onFailure
+      dict.translate word, settings
   @
 
 # Globals
